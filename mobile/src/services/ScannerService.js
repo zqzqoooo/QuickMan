@@ -1,4 +1,3 @@
-// src/services/ScannerService.js
 import { Camera } from 'expo-camera';
 
 export const ScannerService = {

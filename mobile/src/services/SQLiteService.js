@@ -4,7 +4,7 @@ const DB_NAME = 'gearstack_offline.db';
 
 export const SQLiteService = {
   // =========================================================
-  // 1. 初始化数据库和表结构
+  // 1. Initialize database and table structure
   // =========================================================
   initDB: async () => {
     try {
@@ -56,16 +56,16 @@ export const SQLiteService = {
 
       
 
-      console.log('✅ SQLite 本地数据库初始化成功！');
+      console.log('✅ SQLite local database initialized successfully!');
       return true;
     } catch (error) {
-      console.error('❌ SQLite 初始化失败:', error);
+      console.error('❌ SQLite initialization failed:', error);
       return false;
     }
   },
 
   // =========================================================
-  // 2. 核心业务：获取所有设备 (管理员页面用)
+  // 2. Core business: Get all assets (for admin page)
   // =========================================================
   getAssets: async () => {
     try {
@@ -78,13 +78,13 @@ export const SQLiteService = {
         WHERE a.is_deleted = 0
       `);
     } catch (error) {
-      console.error("获取资产列表失败:", error);
+      console.error("Failed to get asset list:", error);
       return [];
     }
   },
 
   // =========================================================
-  // 3. 核心业务：扫码借还流水处理 (主页扫码用)
+  // 3. Core business: Process scan transfer (for home scan)
   // =========================================================
   processTransfer: async (assetCode, targetStatus, operatorId, remarks) => {
     try {
@@ -92,24 +92,24 @@ export const SQLiteService = {
       const now = Date.now();
 
       await db.withTransactionAsync(async () => {
-        // 1. 先通过扫到的 Code 查出设备的内部 ID
+        // 1. First find the internal ID of the asset by the scanned Code
         const asset = await db.getFirstAsync('SELECT * FROM assets WHERE code = ? AND is_deleted = 0', [assetCode]);
         
         if (!asset) {
-          throw new Error(`系统内未找到编号为 [${assetCode}] 的有效设备`);
+          throw new Error(`No valid asset found with code [${assetCode}] in the system`);
         }
 
         const assetId = asset.id;
         const actionType = targetStatus === 1 ? 'OUT' : 'IN';
         const txId = 'TX_' + now + '_' + Math.floor(Math.random() * 1000);
 
-        // 2. 更新设备状态，触发 sync_status = 2 (表示被修改过，需要 PUSH)
+        // 2. Update asset status, trigger sync_status = 2 (indicates modified, needs PUSH)
         await db.runAsync(
           `UPDATE assets SET item_status = ?, updated_at = ?, sync_status = 2 WHERE id = ?`,
           [targetStatus, now, assetId]
         );
 
-        // 3. 写入不可篡改的流水账
+        // 3. Write tamper-proof transaction log
         await db.runAsync(
           `INSERT INTO transactions (id, asset_id, action_type, operator_id, action_time, remarks, sync_status, is_deleted) 
            VALUES (?, ?, ?, ?, ?, ?, 1, 0)`,
@@ -119,13 +119,13 @@ export const SQLiteService = {
 
       return { success: true };
     } catch (error) {
-      console.error("流转操作失败:", error);
-      throw error; // 把错误抛给 UI 层去 Alert
+      console.error("Transfer operation failed:", error);
+      throw error; // Throw error to UI layer to Alert
     }
   },
 
   // =========================================================
-  // 4. 获取柜子详情及内部设备 (管理员扫柜子用)
+  // 4. Get cabinet details and internal assets (for admin scanning cabinet)
   // =========================================================
   getCabinetDetailsByCode: async (cabinetCode) => {
     try {
@@ -141,7 +141,7 @@ export const SQLiteService = {
   },
 
   // =========================================================
-  // 5. 调试工具：获取全盘数据 Dump
+  // 5. Debug tool: Get full database Dump
   // =========================================================
   getFullDbDump: async () => {
     try {
@@ -158,7 +158,7 @@ export const SQLiteService = {
   },
 
   // =========================================================
-  // 6. 离线同步引擎专属方法 (PUSH 阶段抓取数据)
+  // 6. Offline sync engine exclusive method (fetch data in PUSH phase)
   // =========================================================
   getPendingCabinets: async () => {
     const db = await SQLite.openDatabaseAsync(DB_NAME);
@@ -174,7 +174,7 @@ export const SQLiteService = {
   },
 
   // =========================================================
-  // 7. 离线同步引擎专属方法 (PUSH 成功后消灭标记)
+  // 7. Offline sync engine exclusive method (clear flag after successful PUSH)
   // =========================================================
   markCabinetsAsSynced: async (cabinetIds) => {
     if (!cabinetIds || cabinetIds.length === 0) return;
@@ -200,11 +200,11 @@ export const SQLiteService = {
   },
 
   // =========================================================
-  // 8. 离线同步引擎专属方法 (PULL 阶段写入/覆盖数据)
+  // 8. Offline sync engine exclusive method (write/overwrite data in PULL phase)
   // =========================================================
   savePulledData: async (cabinets = [], assets = [], transactions = []) => {
     const db = await SQLite.openDatabaseAsync(DB_NAME);
-    await db.execAsync('PRAGMA foreign_keys = OFF;'); // 覆盖时临时关掉外键检查防报错
+    await db.execAsync('PRAGMA foreign_keys = OFF;'); // Temporarily disable foreign key checks during overwrite to prevent errors
 
     try {
       await db.withTransactionAsync(async () => {
@@ -256,14 +256,14 @@ export const SQLiteService = {
   },
 
   // =========================================================
-  // 9. 柜子 CRUD
+  // 9. Cabinet CRUD
   // =========================================================
   getCabinets: async () => {
     try {
       const db = await SQLite.openDatabaseAsync(DB_NAME);
       return await db.getAllAsync('SELECT * FROM cabinets WHERE is_deleted = 0 ORDER BY updated_at DESC');
     } catch (error) {
-      console.error("获取柜子列表失败:", error);
+      console.error("Failed to get cabinet list:", error);
       return [];
     }
   },
@@ -290,7 +290,7 @@ export const SQLiteService = {
       );
       return true;
     } catch (error) {
-      console.error("更新柜子失败:", error);
+      console.error("Failed to update cabinet:", error);
       return false;
     }
   },
@@ -305,13 +305,13 @@ export const SQLiteService = {
       );
       return true;
     } catch (error) {
-      console.error("删除柜子失败:", error);
+      console.error("Failed to delete cabinet:", error);
       return false;
     }
   },
 
   // =========================================================
-  // 10. 设备 CRUD
+  // 10. Asset CRUD
   // =========================================================
   getAssetsByCabinet: async (cabinetId) => {
     try {
@@ -401,13 +401,13 @@ export const SQLiteService = {
       );
       return id;
     } catch (error) {
-      console.error("添加柜子失败:", error);
+      console.error("Failed to add cabinet:", error);
       return null;
     }
   },
 
   // =========================================================
-  // 11. 记录设备操作流水
+  // 11. Record asset operation transaction
   // =========================================================
   recordTransaction: async (assetId, actionType, operatorId, remarks) => {
     try {
@@ -421,13 +421,13 @@ export const SQLiteService = {
       );
       return txId;
     } catch (error) {
-      console.error("记录流水失败:", error);
+      console.error("Failed to record transaction:", error);
       return null;
     }
   },
 
   // =========================================================
-  // 12. 设备流水记录查询
+  // 12. Query asset transaction records
   // =========================================================
   getTransactionsByAssetId: async (assetId) => {
     try {
@@ -437,13 +437,13 @@ export const SQLiteService = {
         [assetId]
       );
     } catch (error) {
-      console.error("获取设备流水失败:", error);
+      console.error("Failed to get asset transactions:", error);
       return [];
     }
   },
 
   // =========================================================
-  // 12. 更新打印状态
+  // 12. Update print status
   // =========================================================
   updateLabelStatus: async (id, type, status, printedAt) => {
     try {
@@ -462,7 +462,7 @@ export const SQLiteService = {
       }
       return true;
     } catch (error) {
-      console.error("更新打印状态失败:", error);
+      console.error("Failed to update print status:", error);
       return false;
     }
   }

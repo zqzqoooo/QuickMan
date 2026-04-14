@@ -7,7 +7,6 @@ export const FeedbackService = {
   },
 
   playBeep: () => {
-    // 短震动模拟提示音
     if (Platform.OS === 'ios') {
       Vibration.vibrate(50);
     } else {
@@ -16,7 +15,6 @@ export const FeedbackService = {
   },
 
   playError: () => {
-    // 错误震动
     Vibration.vibrate([0, 100, 100, 200]);
   }
 };

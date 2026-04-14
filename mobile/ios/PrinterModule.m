@@ -5,10 +5,10 @@
 
 RCT_EXPORT_MODULE(PrinterModule);
 
-// 1. 初始化 SDK (必须最先调用)
+// 1. Initialize SDK (must be called first)
 RCT_EXPORT_METHOD(initSDK:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
     NSError *error = nil;
-    [JCAPI initImageProcessing:nil error:&error]; // 不传自定义字体路径
+    [JCAPI initImageProcessing:nil error:&error];
     if (error) {
         reject(@"INIT_ERROR", error.localizedDescription, error);
     } else {
@@ -16,63 +16,63 @@ RCT_EXPORT_METHOD(initSDK:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRe
     }
 }
 
-// 2. 扫描蓝牙打印机
+// 2. Scan Bluetooth printers
 RCT_EXPORT_METHOD(scanPrinters:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
     [JCAPI scanBluetoothPrinter:^(NSArray *scanedPrinterNames) {
-        resolve(scanedPrinterNames ? scanedPrinterNames : @[]); // 返回扫描到的设备名称数组 [cite: 426, 428]
+        resolve(scanedPrinterNames ? scanedPrinterNames : @[]);
     }];
 }
 
-// 3. 连接打印机
+// 3. Connect printer
 RCT_EXPORT_METHOD(connectPrinter:(NSString *)printerName resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
     [JCAPI openPrinter:printerName completion:^(BOOL isSuccess) {
         if (isSuccess) {
             resolve(@(YES));
         } else {
-            reject(@"CONNECT_FAILED", @"打印机连接失败", nil);
+            reject(@"CONNECT_FAILED", @"Printer connection failed", nil);
         }
     }];
 }
 
-// 4. 准备打印环境 (修改版)
+// 4. Prepare print environment (modified version)
 RCT_EXPORT_METHOD(preparePrint:(float)width height:(float)height copies:(int)copies resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
     
-    // 关键修复：开启任务前，必须先设置总打印张数
+    // Critical fix: Total number of prints must be set before starting the job
     [JCAPI setTotalQuantityOfPrints:copies];
     
-    // 浓度设为 2 (兼容性更好)，纸张类型 1 (间隙纸)
+    // Density set to 2 (better compatibility), paper type 1 (gap paper)
     [JCAPI startJob:2 withPaperStyle:1 withCompletion:^(BOOL isSuccess) {
         if (isSuccess) {
             [JCAPI initDrawingBoard:width withHeight:height withHorizontalShift:0 withVerticalShift:0 rotate:0 fontArray:@[]];
             resolve(@(YES));
         } else {
-            reject(@"START_JOB_FAILED", @"开启任务失败(请检查: 1.是否缺纸 2.纸仓盖是否盖紧)", nil);
+            reject(@"START_JOB_FAILED", @"Failed to start job (Please check: 1. Out of paper 2. Paper bin cover is tight)", nil);
         }
     }];
 }
 
-// 5. 绘制文字
+// 5. Draw text
 RCT_EXPORT_METHOD(drawText:(float)x y:(float)y width:(float)w height:(float)h text:(NSString *)text fontSize:(float)fontSize resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
     BOOL result = [JCAPI drawLableText:x withY:y withWidth:w withHeight:h withString:text withFontFamily:@"" withFontSize:fontSize withRotate:0 withTextAlignHorizonral:0 withTextAlignVertical:1 withLineMode:1 withLetterSpacing:0 withLineSpacing:1 withFontStyle:@[@0,@0,@0,@0]];
     resolve(@(result));
 }
 
-// 6. 绘制二维码
+// 6. Draw QR code
 RCT_EXPORT_METHOD(drawQRCode:(float)x y:(float)y width:(float)w text:(NSString *)text resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-    BOOL result = [JCAPI drawLableQrCode:x withY:y withWidth:w withHeight:w withString:text withRotate:0 withCodeType:31]; // 31代表QR CODE [cite: 1103, 1116, 1118, 1120, 1122, 1124]
+    BOOL result = [JCAPI drawLableQrCode:x withY:y withWidth:w withHeight:w withString:text withRotate:0 withCodeType:31]; // 31 represents QR CODE [cite: 1103, 1116, 1118, 1120, 1122, 1124]
     resolve(@(result));
 }
 
-// 7. 提交并结束
+// 7. Commit and finish
 RCT_EXPORT_METHOD(commitPrint:(int)copies resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-    NSString *jsonStr = [JCAPI GenerateLableJson]; // 必须先生成 JSON [cite: 1243]
+    NSString *jsonStr = [JCAPI GenerateLableJson];
     [JCAPI commit:jsonStr withOnePageNumbers:copies withComplete:^(BOOL isSuccess) {
         if (isSuccess) {
             [JCAPI endPrint:^(BOOL endSuccess) {
                  resolve(@(endSuccess));
             }];
         } else {
-            reject(@"COMMIT_FAILED", @"提交打印数据失败", nil);
+            reject(@"COMMIT_FAILED", @"Failed to commit print data", nil);
         }
     }];
 }
